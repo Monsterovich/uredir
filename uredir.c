@@ -77,7 +77,7 @@ static int usage(int code)
 	       "  -t SEC  Timeout for connections, default 3 seconds\n"
 	       "  -v      Show program version\n\n"
 	       "  -p      Set specific sender port instead of random. Doesn't work with -t."
-	       "  -a      Specify incoming address.\n"
+	       "  -a      Specify required incoming address.\n"
 	       "Bug report address: %-40s\n\n", prognm, ident, PACKAGE_BUGREPORT);
 
 	return code;

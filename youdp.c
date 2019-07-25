@@ -266,7 +266,7 @@ static struct conn *conn_find(struct in_addr *local, struct sockaddr_in *remote)
 	return NULL;
 }
 
-static struct conn *conn_new(uev_ctx_t *ctx, struct in_addr *local, struct sockaddr_in *remote)
+static struct conn *conn_new(uev_ctx_t *ctx, struct in_addr *local, struct sockaddr_in *remote, int8_t ignore_specific_port)
 {
 	struct msghdr *hdr;
 	struct conn *c;
@@ -290,7 +290,7 @@ static struct conn *conn_new(uev_ctx_t *ctx, struct in_addr *local, struct socka
 	c->remote = hdr->msg_name;
 	c->local = *local;
 
-	if (sock_new(&c->sd, PORT_DECIDE)) {
+	if (sock_new(&c->sd, ignore_specific_port ? PORT_RANDOM : PORT_DECIDE)) {
 		free(c);
 		hdr_free(hdr);
 		return NULL;
@@ -363,7 +363,7 @@ static void outer_to_inner(uev_t *w, void *arg, int events)
 
 	c = conn_find(local, &sin);
 	if (!c) {
-		c = conn_new(w->ctx, local, &sin);
+		c = conn_new(w->ctx, local, &sin, 0);
 		if (!c) {
 			_e("Failed allocating new connection: %m");
 			uev_exit(w->ctx);
@@ -389,11 +389,19 @@ static void outer_to_inner(uev_t *w, void *arg, int events)
 	_d("");
 	conn_dump(c);
 
-	if (filter_address.s_addr != 0 && c->local.s_addr != filter_address.s_addr)
+	if (filter_address.s_addr != 0)
 	{
-		_d("Filtering all addresses except %s as requested.\n", inet_ntoa(filter_address));
-		timer_reset(c);
-		return;
+		_d("All packets from %s will be send with specified port (-p option).\n", inet_ntoa(filter_address));
+		if (c->local.s_addr != filter_address.s_addr)
+		{
+			conn_end(c);
+			c = conn_new(w->ctx, local, &sin, 1);
+			if (!c) {
+				_e("Failed allocating new connection: %m");
+				uev_exit(w->ctx);
+				return;
+			}
+		}
 	}
 
 	if (send(c->sd, c->hdr->msg_iov->iov_base, len, 0) == -1)
