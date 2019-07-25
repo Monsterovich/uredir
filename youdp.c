@@ -193,6 +193,9 @@ int sock_new(int *sock, uint8_t port_mode)
 	if (setsockopt(sd, SOL_IP, IP_PKTINFO, &on, sizeof(on)))
 		goto error;
 
+	if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on)))
+		goto error;
+
 	if (port_mode == PORT_DECIDE && specific_port != 0)
 	{
 		struct sockaddr_in cli;
