@@ -35,6 +35,7 @@ static int background = 1;
 static int do_syslog  = 1;
 static char *ident    = PACKAGE_NAME;
 static char *prognm   = PACKAGE_NAME;
+short specific_port   = 0;
 
 
 static int loglvl(char *level)
@@ -73,6 +74,7 @@ static int usage(int code)
 	       "  -s      Use syslog, even if running in foreground, default w/o -n\n"
 	       "  -t SEC  Timeout for connections, default 3 seconds\n"
 	       "  -v      Show program version\n\n"
+	       "  -p      Set specific sender port instead of random. Doesn't work with -t."
 	       "Bug report address: %-40s\n\n", prognm, ident, PACKAGE_BUGREPORT);
 
 	return code;
@@ -124,7 +126,7 @@ int main(int argc, char *argv[])
 	uev_ctx_t ctx;
 
 	ident = prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "hiI:l:nst:v")) != EOF) {
+	while ((c = getopt(argc, argv, "hiI:l:nstp:v")) != EOF) {
 		switch (c) {
 		case 'h':
 			return usage(0);
@@ -155,6 +157,10 @@ int main(int argc, char *argv[])
 
 		case 't':
 			timeout = atoi(optarg);
+			break;
+
+		case 'p':
+			specific_port = atoi(optarg);
 			break;
 
 		case 'v':

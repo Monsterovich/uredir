@@ -48,6 +48,11 @@
 #define CONTROL_BUFSIZE 512
 #define DATA_BUFSIZE BUFSIZ
 
+#define PORT_RANDOM 0
+#define PORT_DECIDE 1
+
+extern short specific_port;
+
 static uev_t outer_watcher;
 static struct sockaddr_in outer;
 static struct sockaddr_in inner;
@@ -131,7 +136,10 @@ static void timer_cb(uev_t *w, void *arg, int events)
 void timer_reset(struct conn *c)
 {
 	_d("");
-	uev_timer_set(&c->timer, timeout * 1000, 0);
+	if (specific_port != 0)
+		uev_timer_set(&c->timer, 1, 0);
+	else
+		uev_timer_set(&c->timer, timeout * 1000, 1000);
 }
 
 /* Peek into socket to figure out where an inbound packet comes from */
@@ -162,7 +170,7 @@ static struct in_addr *peek(int sd, void *name, socklen_t len)
 	return NULL;
 }
 
-int sock_new(int *sock)
+int sock_new(int *sock, uint8_t port_mode)
 {
 	int sd = *sock;
 	int opt = 0, on = 1;
@@ -184,6 +192,19 @@ int sock_new(int *sock)
 
 	if (setsockopt(sd, SOL_IP, IP_PKTINFO, &on, sizeof(on)))
 		goto error;
+
+	if (port_mode == PORT_DECIDE && specific_port != 0)
+	{
+		struct sockaddr_in cli;
+		memset(&cli, 0, sizeof(cli));
+		cli.sin_family = AF_INET; 
+		cli.sin_addr.s_addr = INADDR_ANY; 
+		cli.sin_port = htons(specific_port);
+		if (bind(sd, (struct sockaddr*) &cli, sizeof(struct sockaddr_in)) == 0) 
+			_d("Custom port %d bound correctly.\n", specific_port); 
+		else
+			_e("Failed to bind custom port %d.\n", specific_port);
+	}
 
 	*sock = sd;
 	return 0;
@@ -265,7 +286,7 @@ static struct conn *conn_new(uev_ctx_t *ctx, struct in_addr *local, struct socka
 	c->remote = hdr->msg_name;
 	c->local = *local;
 
-	if (sock_new(&c->sd)) {
+	if (sock_new(&c->sd, PORT_DECIDE)) {
 		free(c);
 		hdr_free(hdr);
 		return NULL;
@@ -374,7 +395,7 @@ static int outer_init(char *addr, short port)
 {
 	int sd = -1;
 
-	if (sock_new(&sd))
+	if (sock_new(&sd, 0))
 		return -1;
 
 	memset(&outer, 0, sizeof(outer));
@@ -390,7 +411,6 @@ static int outer_init(char *addr, short port)
 
 	return sd;
 }
-
 int redirect_init(uev_ctx_t *ctx, char *src, short src_port, char *dst, short dst_port)
 {
 	int sd;
@@ -403,7 +423,7 @@ int redirect_init(uev_ctx_t *ctx, char *src, short src_port, char *dst, short ds
 	if (!src) {
 		/* Running as an inetd service */
 		sd = STDIN_FILENO;
-		if (sock_new(&sd))
+		if (sock_new(&sd, 1))
 			return 1;
 	} else {
 		sd = outer_init(src, src_port);
