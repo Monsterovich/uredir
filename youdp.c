@@ -52,6 +52,7 @@
 #define PORT_DECIDE 1
 
 extern short specific_port;
+extern struct in_addr filter_address;
 
 static uev_t outer_watcher;
 static struct sockaddr_in outer;
@@ -387,6 +388,13 @@ static void outer_to_inner(uev_t *w, void *arg, int events)
 
 	_d("");
 	conn_dump(c);
+
+	if (filter_address.s_addr != 0 && c->local.s_addr != filter_address.s_addr)
+	{
+		_d("Filtering all addresses except %s as requested.\n", inet_ntoa(filter_address));
+		timer_reset(c);
+		return;
+	}
 
 	if (send(c->sd, c->hdr->msg_iov->iov_base, len, 0) == -1)
 		conn_end(c);

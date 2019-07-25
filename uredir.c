@@ -28,6 +28,7 @@
 #include <uev/uev.h>
 #include "uredir.h"
 
+
 int inetd   = 0;
 int timeout = 3;
 
@@ -36,6 +37,7 @@ static int do_syslog  = 1;
 static char *ident    = PACKAGE_NAME;
 static char *prognm   = PACKAGE_NAME;
 short specific_port   = 0;
+struct in_addr filter_address;
 
 
 static int loglvl(char *level)
@@ -75,6 +77,7 @@ static int usage(int code)
 	       "  -t SEC  Timeout for connections, default 3 seconds\n"
 	       "  -v      Show program version\n\n"
 	       "  -p      Set specific sender port instead of random. Doesn't work with -t."
+	       "  -a      Specify incoming address.\n"
 	       "Bug report address: %-40s\n\n", prognm, ident, PACKAGE_BUGREPORT);
 
 	return code;
@@ -118,6 +121,7 @@ static char *progname(char *arg0)
 
 int main(int argc, char *argv[])
 {
+	filter_address.s_addr = 0;
 	int c, src_port = 0, dst_port = 0;
 	int log_opts = LOG_CONS | LOG_PID;
 	int loglevel = LOG_NOTICE;
@@ -126,7 +130,7 @@ int main(int argc, char *argv[])
 	uev_ctx_t ctx;
 
 	ident = prognm = progname(argv[0]);
-	while ((c = getopt(argc, argv, "hiI:l:nstp:v")) != EOF) {
+	while ((c = getopt(argc, argv, "hiI:l:a:nstp:v")) != EOF) {
 		switch (c) {
 		case 'h':
 			return usage(0);
@@ -161,6 +165,10 @@ int main(int argc, char *argv[])
 
 		case 'p':
 			specific_port = atoi(optarg);
+			break;
+
+		case 'a':
+			filter_address.s_addr = inet_addr(optarg);
 			break;
 
 		case 'v':
