@@ -395,7 +395,7 @@ static int outer_init(char *addr, short port)
 {
 	int sd = -1;
 
-	if (sock_new(&sd, 0))
+	if (sock_new(&sd, PORT_RANDOM))
 		return -1;
 
 	memset(&outer, 0, sizeof(outer));
@@ -423,7 +423,7 @@ int redirect_init(uev_ctx_t *ctx, char *src, short src_port, char *dst, short ds
 	if (!src) {
 		/* Running as an inetd service */
 		sd = STDIN_FILENO;
-		if (sock_new(&sd, 1))
+		if (sock_new(&sd, PORT_DECIDE))
 			return 1;
 	} else {
 		sd = outer_init(src, src_port);
